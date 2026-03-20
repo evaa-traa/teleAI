@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TeleAI Admin</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <h1>TeleAI Admin</h1>
+        <p>Telegram users, sessions, and live Flowise chat history.</p>
+      </div>
+      <div class="auth-box">
+        <input id="adminToken" type="password" placeholder="Enter ADMIN_TOKEN" />
+        <button id="saveToken">Unlock</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Summary</h2>
+          <button id="refreshAll">Refresh</button>
+        </div>
+        <div id="summary" class="summary-grid"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Backup Viewer</h2>
+          <button id="refreshBackups">Refresh Backups</button>
+        </div>
+        <div id="backupActions" class="backup-actions"></div>
+        <div id="backupMeta" class="muted backup-meta">Choose live data or a backup snapshot.</div>
+        <pre id="backupData" class="backup-data empty-state">No backup data loaded.</pre>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Users</h2>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Username</th>
+                <th>Sessions</th>
+                <th>AI Msgs</th>
+                <th>Last Seen</th>
+              </tr>
+            </thead>
+            <tbody id="usersTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>User Detail</h2>
+          <button id="newSessionBtn" disabled>New Session</button>
+        </div>
+        <div id="userDetail" class="empty-state">Select a user.</div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Flowise Messages</h2>
+          <button id="refreshMessagesBtn" disabled>Refresh Messages</button>
+        </div>
+        <div id="messages" class="messages empty-state">Select a session.</div>
+      </section>
+    </main>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+  </html>

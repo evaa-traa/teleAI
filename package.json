@@ -1,0 +1,17 @@
+{
+  "name": "teleai-flowise-telegram-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Telegram bot bridge for an existing Flowise instance with a lightweight admin dashboard.",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.1",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "grammy": "^1.36.3"
+  }
+}
