@@ -131,6 +131,7 @@ If `ADMIN_TOKEN` contains `#`, spaces, or quotes, keep it wrapped in quotes in `
 
 For Render, set `APP_BASE_URL` to your public service URL so Telegram uses webhook mode instead of polling.
 Set `FLOWISE_TIMEOUT_MS` higher if your Flowise responses are slow. Use `0` to disable the timeout entirely.
+Set `DEBUG_LOGS=true` temporarily when you need end-to-end Telegram and Flowise tracing in Render logs.
 
 4. Start the app:
 

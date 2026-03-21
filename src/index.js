@@ -50,6 +50,16 @@ app.post(config.telegramWebhookPath, async (request, response) => {
     }
   }
 
+  if (config.debugLogs) {
+    console.log("[telegram] webhook.update", {
+      updateId: request.body?.update_id,
+      hasMessage: Boolean(request.body?.message),
+      hasCallbackQuery: Boolean(request.body?.callback_query),
+      messageText: request.body?.message?.text || null,
+      fromId: request.body?.message?.from?.id || request.body?.callback_query?.from?.id || null
+    });
+  }
+
   response.sendStatus(200);
   void bot.handleUpdate(request.body).catch((error) => {
     console.error("Telegram webhook handling failed:", error);
@@ -69,6 +79,7 @@ app.use("/api/admin", createAdminRouter({ config, store, flowise, neonBackup }))
 const server = app.listen(config.port, () => {
   console.log(`${config.appName} dashboard is running on http://localhost:${config.port}`);
   console.log(`Telegram startup mode: ${telegramMode}`);
+  console.log(`Debug logs: ${config.debugLogs ? "enabled" : "disabled"}`);
 });
 
 const stopNeonBackupScheduler = neonBackup.startScheduler();

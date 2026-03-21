@@ -92,6 +92,14 @@ function buildFlowiseErrorMessage(error) {
   ].join("\n");
 }
 
+function debugLog(config, event, data = {}) {
+  if (!config.debugLogs) {
+    return;
+  }
+
+  console.log(`[bot] ${event}`, data);
+}
+
 async function replyInChunks(ctx, text, extra = {}) {
   for (const chunk of chunkText(text)) {
     await ctx.reply(chunk, extra);
@@ -177,6 +185,11 @@ export function createTelegramBot({ config, store, flowise, rateLimiter }) {
     }
 
     const { user, session } = await ensureUserContext(ctx, store);
+    debugLog(config, "command.start", {
+      userId: user.telegramUserId,
+      sessionKey: session.sessionKey,
+      chatType: ctx.chat?.type
+    });
     await store.incrementCommand(user.telegramUserId, "/start");
     await respondWithMenu(ctx, buildWelcomeMessage(config.appName, session));
   });
@@ -187,6 +200,9 @@ export function createTelegramBot({ config, store, flowise, rateLimiter }) {
     }
 
     const { user } = await ensureUserContext(ctx, store);
+    debugLog(config, "command.help", {
+      userId: user.telegramUserId
+    });
     await store.incrementCommand(user.telegramUserId, "/help");
     await respondWithMenu(ctx, buildHelpMessage());
   });
@@ -197,6 +213,9 @@ export function createTelegramBot({ config, store, flowise, rateLimiter }) {
     }
 
     const { user } = await ensureUserContext(ctx, store);
+    debugLog(config, "command.settings", {
+      userId: user.telegramUserId
+    });
     await store.incrementCommand(user.telegramUserId, "/settings");
     await ctx.reply(buildSettingsMessage(user.settings), {
       parse_mode: "HTML",
@@ -210,6 +229,9 @@ export function createTelegramBot({ config, store, flowise, rateLimiter }) {
     }
 
     const { user } = await ensureUserContext(ctx, store);
+    debugLog(config, "command.newchat", {
+      userId: user.telegramUserId
+    });
     await store.incrementCommand(user.telegramUserId, "/newchat");
     const session = await store.createNewSession(user.telegramUserId);
     await respondWithMenu(ctx, buildNewChatMessage(session));
@@ -227,6 +249,10 @@ export function createTelegramBot({ config, store, flowise, rateLimiter }) {
 
     const action = ctx.match[1];
     const { user } = await ensureUserContext(ctx, store);
+    debugLog(config, "menu.action", {
+      userId: user.telegramUserId,
+      action
+    });
 
     if (action === "help") {
       await ctx.reply(buildHelpMessage(), {
@@ -269,6 +295,11 @@ export function createTelegramBot({ config, store, flowise, rateLimiter }) {
 
     const { user } = await ensureUserContext(ctx, store);
     const [, group, value] = ctx.match;
+    debugLog(config, "settings.update", {
+      userId: user.telegramUserId,
+      group,
+      value
+    });
 
     const updates =
       group === "lang"
@@ -296,9 +327,21 @@ export function createTelegramBot({ config, store, flowise, rateLimiter }) {
     }
 
     const { user, session } = await ensureUserContext(ctx, store);
+    debugLog(config, "message.received", {
+      userId: user.telegramUserId,
+      sessionKey: session.sessionKey,
+      flowiseChatId: session.flowiseChatId || null,
+      textLength: incomingText.length,
+      chatType: ctx.chat?.type
+    });
     const rate = await rateLimiter.consume(user.telegramUserId);
 
     if (!rate.allowed) {
+      debugLog(config, "message.rate_limited", {
+        userId: user.telegramUserId,
+        limit: rate.limit,
+        resetAt: rate.resetAt
+      });
       if (user.settings.rateLimitAlerts) {
         await respondWithMenu(ctx, buildRateLimitMessage(rate));
       }
@@ -310,6 +353,11 @@ export function createTelegramBot({ config, store, flowise, rateLimiter }) {
     const stopTyping = startTypingLoop(ctx);
 
     try {
+      debugLog(config, "flowise.request.start", {
+        userId: user.telegramUserId,
+        sessionKey: session.sessionKey,
+        flowiseChatId: session.flowiseChatId || null
+      });
       const response = await flowise.sendMessage({
         session,
         question: incomingText,
@@ -317,9 +365,19 @@ export function createTelegramBot({ config, store, flowise, rateLimiter }) {
       });
 
       await store.incrementAiMessages(user.telegramUserId);
+      debugLog(config, "flowise.request.success", {
+        userId: user.telegramUserId,
+        sessionKey: session.sessionKey,
+        responseLength: String(response.text || "").length
+      });
       await replacePlaceholderReply(ctx, placeholderMessage, response.text);
     } catch (error) {
       await store.markFlowiseError(user.telegramUserId);
+      debugLog(config, "flowise.request.error", {
+        userId: user.telegramUserId,
+        sessionKey: session.sessionKey,
+        message: error.message
+      });
       await replacePlaceholderReply(ctx, placeholderMessage, buildFlowiseErrorMessage(error));
     } finally {
       stopTyping();

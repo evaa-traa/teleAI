@@ -75,6 +75,7 @@ export const config = {
   telegramMode: ["auto", "polling", "webhook"].includes(process.env.TELEGRAM_MODE)
     ? process.env.TELEGRAM_MODE
     : "auto",
+  debugLogs: toBoolean(process.env.DEBUG_LOGS, false),
   appBaseUrl: resolveAppBaseUrl(),
   telegramWebhookPath: normalizePath(process.env.TELEGRAM_WEBHOOK_PATH, "/webhooks/telegram"),
   telegramWebhookSecret: normalizeSecret(process.env.TELEGRAM_WEBHOOK_SECRET),

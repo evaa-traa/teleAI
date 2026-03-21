@@ -11,6 +11,14 @@ function buildHeaders(apiKey) {
   return headers;
 }
 
+function debugLog(config, event, data = {}) {
+  if (!config.debugLogs) {
+    return;
+  }
+
+  console.log(`[flowise] ${event}`, data);
+}
+
 function withTimeout(timeoutMs) {
   if (!timeoutMs || timeoutMs <= 0) {
     return {
@@ -92,8 +100,7 @@ export function createFlowiseClient(config) {
       const timeout = withTimeout(config.flowiseTimeoutMs);
       const chatId = session.flowiseChatId || session.sessionKey;
       const body = {
-        question: decorateQuestion(question, settings),
-        streaming: false
+        question: decorateQuestion(question, settings)
       };
 
       if (config.flowiseSessionMode === "chatId") {
@@ -105,6 +112,13 @@ export function createFlowiseClient(config) {
       }
 
       try {
+        debugLog(config, "prediction.request", {
+          url: `${config.flowiseBaseUrl}/api/v1/prediction/${config.flowiseFlowId}`,
+          sessionMode: config.flowiseSessionMode,
+          sessionKey: session.sessionKey,
+          flowiseChatId: chatId,
+          body
+        });
         const response = await fetch(`${config.flowiseBaseUrl}/api/v1/prediction/${config.flowiseFlowId}`, {
           method: "POST",
           headers,
@@ -113,8 +127,19 @@ export function createFlowiseClient(config) {
         });
 
         const payload = await response.json().catch(() => null);
+        debugLog(config, "prediction.response", {
+          status: response.status,
+          ok: response.ok,
+          payload
+        });
 
         if (!response.ok) {
+          if (response.status === 422 && !payload) {
+            throw new Error(
+              "Flowise prediction failed with 422. The flow rejected the request payload. Verify this flow accepts question-based Prediction API calls and allows the configured session mode."
+            );
+          }
+
           const message = payload?.message || payload?.error || response.statusText;
           throw new Error(`Flowise prediction failed: ${message}`);
         }
@@ -152,6 +177,12 @@ export function createFlowiseClient(config) {
       }
 
       try {
+        debugLog(config, "history.request", {
+          url: `${config.flowiseBaseUrl}/api/v1/chatmessage/${config.flowiseFlowId}?${params.toString()}`,
+          sessionMode: config.flowiseSessionMode,
+          sessionKey: session.sessionKey,
+          flowiseChatId: session.flowiseChatId || session.sessionKey
+        });
         const response = await fetch(
           `${config.flowiseBaseUrl}/api/v1/chatmessage/${config.flowiseFlowId}?${params.toString()}`,
           {
@@ -162,6 +193,12 @@ export function createFlowiseClient(config) {
         );
 
         const payload = await response.json().catch(() => []);
+        debugLog(config, "history.response", {
+          status: response.status,
+          ok: response.ok,
+          count: Array.isArray(payload) ? payload.length : null,
+          payload: Array.isArray(payload) ? undefined : payload
+        });
 
         if (!response.ok) {
           const message = payload?.message || payload?.error || response.statusText;
