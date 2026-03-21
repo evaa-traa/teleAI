@@ -115,8 +115,12 @@ async function sendFormattedChunk(ctx, text, editTarget) {
     } else {
       await ctx.reply(html, { parse_mode: "HTML" });
     }
-  } catch {
-    // Fallback: if HTML parsing fails (malformed tags), send as plain text
+  } catch (htmlError) {
+    // Log the error so we can diagnose HTML parsing issues
+    console.warn("[bot] HTML formatting rejected by Telegram, falling back to plain text.", {
+      error: htmlError?.message || String(htmlError),
+      htmlPreview: html.slice(0, 200)
+    });
     if (editTarget) {
       try {
         await ctx.api.editMessageText(ctx.chat.id, editTarget, text);

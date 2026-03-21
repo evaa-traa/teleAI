@@ -108,25 +108,34 @@ export function markdownToTelegramHtml(text) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 
-  // 4. Headings → bold
+  // 4. Horizontal rules: --- or *** → thin line
+  result = result.replace(/^[\-\*]{3,}\s*$/gm, "──────────");
+
+  // 5. Headings → bold
   result = result.replace(/^#{1,6}\s+(.+)$/gm, "<b>$1</b>");
 
-  // 5. Bold: **text** or __text__
+  // 6. Bold: **text** or __text__
   result = result.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
   result = result.replace(/__(.+?)__/g, "<b>$1</b>");
 
-  // 6. Italic: *text* or _text_ (but not inside words with underscores)
+  // 7. Italic: *text* or _text_ (but not inside words with underscores)
   result = result.replace(/(?<!\w)\*([^*]+?)\*(?!\w)/g, "<i>$1</i>");
   result = result.replace(/(?<!\w)_([^_]+?)_(?!\w)/g, "<i>$1</i>");
 
-  // 7. Strikethrough: ~~text~~
+  // 8. Strikethrough: ~~text~~
   result = result.replace(/~~(.+?)~~/g, "<s>$1</s>");
 
-  // 8. Links: [text](url)
+  // 9. Links: [text](url)
   result = result.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
 
-  // 9. Bullet points: * item or - item at start of line → • item
+  // 10. Blockquotes: > text → italic with bar
+  result = result.replace(/^&gt;\s?(.*)$/gm, "┃ <i>$1</i>");
+
+  // 11. Bullet points: * item or - item at start of line → • item
   result = result.replace(/^[\*\-]\s+/gm, "• ");
+
+  // 12. Numbered lists: clean up extra spaces
+  result = result.replace(/^(\d+)\.\s+/gm, "$1. ");
 
   // 10. Restore inline codes (with HTML-escaped content)
   inlineCodes.forEach((code, i) => {
