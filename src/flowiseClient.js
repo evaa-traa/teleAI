@@ -86,11 +86,7 @@ export function createFlowiseClient(config) {
       const chatId = session.flowiseChatId || session.sessionKey;
       const body = {
         question: decorateQuestion(question, settings),
-        streaming: false,
-        history: [],
-        uploads: [],
-        chatId,
-        chatType: "EXTERNAL"
+        streaming: false
       };
 
       if (config.flowiseSessionMode === "chatId") {
@@ -128,8 +124,7 @@ export function createFlowiseClient(config) {
     async getMessages(session) {
       const timeout = withTimeout(config.flowiseTimeoutMs);
       const params = new URLSearchParams({
-        order: "ASC",
-        chatType: "EXTERNAL"
+        order: "ASC"
       });
 
       if (config.flowiseSessionMode === "chatId") {
