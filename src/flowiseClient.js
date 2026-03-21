@@ -125,13 +125,18 @@ export function createFlowiseClient(config) {
   return {
     async sendMessage({ session, question, settings }) {
       const timeout = withTimeout(config.flowiseTimeoutMs);
-      const chatId = session.flowiseChatId || session.sessionKey;
       const decoratedQuestion = decorateQuestion(question, settings);
 
-      const body = { question: decoratedQuestion };
+      // Always set chatId to the session key so Flowise UI groups
+      // messages under a recognizable name (e.g. "tg_7638676611")
+      // instead of anonymous auto-generated UUIDs.
+      const body = {
+        question: decoratedQuestion,
+        chatId: session.sessionKey
+      };
 
       if (config.flowiseSessionMode === "chatId") {
-        body.chatId = chatId;
+        // chatId-only mode: no overrideConfig needed
       } else {
         body.overrideConfig = {
           sessionId: session.sessionKey
@@ -142,7 +147,7 @@ export function createFlowiseClient(config) {
         let { response, payload } = await callPrediction({
           body,
           sessionKey: session.sessionKey,
-          chatId,
+          chatId: session.sessionKey,
           signal: timeout.signal
         });
 
@@ -151,7 +156,8 @@ export function createFlowiseClient(config) {
         //   1. Direct HTTP 422 (no body)
         //   2. HTTP 500 wrapping an internal 422 in payload.message
         // If either pattern is detected AND we sent overrideConfig,
-        // retry with a minimal body so the user still gets an AI response.
+        // retry without it — but KEEP chatId so Flowise UI still
+        // groups the message under the correct session name.
         const is422Direct = response.status === 422;
         const is422Wrapped =
           response.status === 500 &&
@@ -165,11 +171,14 @@ export function createFlowiseClient(config) {
             "To restore per-user session isolation, enable sessionId in",
             "your Flowise chatflow's Override Config settings."
           );
-          const fallbackBody = { question: decoratedQuestion };
+          const fallbackBody = {
+            question: decoratedQuestion,
+            chatId: session.sessionKey
+          };
           ({ response, payload } = await callPrediction({
             body: fallbackBody,
             sessionKey: session.sessionKey,
-            chatId,
+            chatId: session.sessionKey,
             signal: timeout.signal
           }));
         }
@@ -203,7 +212,6 @@ export function createFlowiseClient(config) {
           url: `${config.flowiseBaseUrl}/api/v1/prediction/${config.flowiseFlowId}`,
           sessionMode: config.flowiseSessionMode,
           sessionKey: session.sessionKey,
-          flowiseChatId: chatId,
           message: error?.message || String(error)
         });
         if (error?.name === "AbortError") {
@@ -228,7 +236,7 @@ export function createFlowiseClient(config) {
       });
 
       if (config.flowiseSessionMode === "chatId") {
-        params.set("chatId", session.flowiseChatId || session.sessionKey);
+        params.set("chatId", session.sessionKey);
       } else {
         params.set("sessionId", session.sessionKey);
       }
@@ -237,8 +245,7 @@ export function createFlowiseClient(config) {
         debugLog(config, "history.request", {
           url: `${config.flowiseBaseUrl}/api/v1/chatmessage/${config.flowiseFlowId}?${params.toString()}`,
           sessionMode: config.flowiseSessionMode,
-          sessionKey: session.sessionKey,
-          flowiseChatId: session.flowiseChatId || session.sessionKey
+          sessionKey: session.sessionKey
         });
         const response = await fetch(
           `${config.flowiseBaseUrl}/api/v1/chatmessage/${config.flowiseFlowId}?${params.toString()}`,
@@ -263,7 +270,6 @@ export function createFlowiseClient(config) {
             status: response.status,
             sessionMode: config.flowiseSessionMode,
             sessionKey: session.sessionKey,
-            flowiseChatId: session.flowiseChatId || session.sessionKey,
             payload
           });
           const message = payload?.message || payload?.error || response.statusText;
@@ -286,7 +292,6 @@ export function createFlowiseClient(config) {
           url: `${config.flowiseBaseUrl}/api/v1/chatmessage/${config.flowiseFlowId}?${params.toString()}`,
           sessionMode: config.flowiseSessionMode,
           sessionKey: session.sessionKey,
-          flowiseChatId: session.flowiseChatId || session.sessionKey,
           message: error?.message || String(error)
         });
         if (error?.name === "AbortError") {
