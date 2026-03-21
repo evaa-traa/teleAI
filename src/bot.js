@@ -98,6 +98,21 @@ async function replyInChunks(ctx, text, extra = {}) {
   }
 }
 
+async function replacePlaceholderReply(ctx, placeholderMessage, text) {
+  const chunks = chunkText(text);
+  const [firstChunk = "I could not generate a response right now.", ...remainingChunks] = chunks;
+
+  try {
+    await ctx.api.editMessageText(ctx.chat.id, placeholderMessage.message_id, firstChunk);
+  } catch {
+    await ctx.reply(firstChunk);
+  }
+
+  for (const chunk of remainingChunks) {
+    await ctx.reply(chunk);
+  }
+}
+
 async function respondWithMenu(ctx, text, extra = {}) {
   await replyInChunks(ctx, text, {
     parse_mode: "HTML",
@@ -291,6 +306,7 @@ export function createTelegramBot({ config, store, flowise, rateLimiter }) {
     }
 
     await store.touchSession(user.telegramUserId, session.sessionKey);
+    const placeholderMessage = await ctx.reply("Thinking...");
     const stopTyping = startTypingLoop(ctx);
 
     try {
@@ -301,10 +317,10 @@ export function createTelegramBot({ config, store, flowise, rateLimiter }) {
       });
 
       await store.incrementAiMessages(user.telegramUserId);
-      await replyInChunks(ctx, response.text);
+      await replacePlaceholderReply(ctx, placeholderMessage, response.text);
     } catch (error) {
       await store.markFlowiseError(user.telegramUserId);
-      await respondWithMenu(ctx, buildFlowiseErrorMessage(error));
+      await replacePlaceholderReply(ctx, placeholderMessage, buildFlowiseErrorMessage(error));
     } finally {
       stopTyping();
     }
