@@ -30,6 +30,8 @@ const bot = createTelegramBot({ config, store, flowise, rateLimiter });
 const telegramMode =
   config.telegramMode === "auto" ? (config.appBaseUrl ? "webhook" : "polling") : config.telegramMode;
 
+await bot.init();
+
 const app = express();
 app.use(express.json());
 app.use(express.static(path.resolve(process.cwd(), "public")));
