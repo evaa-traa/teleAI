@@ -118,6 +118,8 @@ Backup retention:
 3. Fill in:
 
    - `TELEGRAM_BOT_TOKEN`
+   - `TELEGRAM_MODE`
+   - `APP_BASE_URL`
    - `TELEGRAM_POLL_RETRY_MS`
    - `FLOWISE_BASE_URL`
    - `FLOWISE_FLOW_ID`
@@ -126,6 +128,8 @@ Backup retention:
    - `NEON_DATABASE_URL`
 
 If `ADMIN_TOKEN` contains `#`, spaces, or quotes, keep it wrapped in quotes in `.env`.
+
+For Render, set `APP_BASE_URL` to your public service URL so Telegram uses webhook mode instead of polling.
 
 4. Start the app:
 
@@ -150,7 +154,7 @@ The dashboard uses `ADMIN_TOKEN`. Enter it in the page and it will be sent as `x
 
 ## Notes
 
-- This starter uses long polling for Telegram because it is simple to run locally.
-- On Render or similar hosts, the app clears webhook state on startup and retries polling if Telegram returns a `409` conflict.
+- Telegram uses webhook mode automatically when `APP_BASE_URL` or `RENDER_EXTERNAL_URL` is available.
+- Telegram uses polling only when no public base URL is configured.
 - If you later want, it can be upgraded to webhooks, SQLite/PostgreSQL, and stronger admin auth.
 - If `NEON_DATABASE_URL` is not set, Neon backup is disabled and the app uses only the local JSON file.

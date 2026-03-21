@@ -32,6 +32,15 @@ function normalizeSecret(value) {
   return text;
 }
 
+function normalizePath(value, fallback) {
+  const text = String(value || fallback || "").trim();
+  if (!text) {
+    return fallback;
+  }
+
+  return text.startsWith("/") ? text : `/${text}`;
+}
+
 export const config = {
   appName: process.env.APP_NAME || "TeleAI Bridge",
   port: toNumber(process.env.PORT, 3001),
@@ -49,6 +58,12 @@ export const config = {
   neonDatabaseUrl: process.env.NEON_DATABASE_URL || "",
   neonBackupKey: process.env.NEON_BACKUP_KEY || "teleai-primary",
   backupIntervalMinutes: Math.max(1, toNumber(process.env.BACKUP_INTERVAL_MINUTES, 30)),
+  telegramMode: ["auto", "polling", "webhook"].includes(process.env.TELEGRAM_MODE)
+    ? process.env.TELEGRAM_MODE
+    : "auto",
+  appBaseUrl: trimTrailingSlash(process.env.APP_BASE_URL || process.env.RENDER_EXTERNAL_URL || ""),
+  telegramWebhookPath: normalizePath(process.env.TELEGRAM_WEBHOOK_PATH, "/webhooks/telegram"),
+  telegramWebhookSecret: normalizeSecret(process.env.TELEGRAM_WEBHOOK_SECRET),
   telegramPollRetryMs: Math.max(5_000, toNumber(process.env.TELEGRAM_POLL_RETRY_MS, 15_000)),
   telegramDropPendingUpdates: toBoolean(process.env.TELEGRAM_DROP_PENDING_UPDATES, false),
   telegramDeleteWebhookOnStart: toBoolean(process.env.TELEGRAM_DELETE_WEBHOOK_ON_START, true)

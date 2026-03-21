@@ -27,10 +27,35 @@ if (neonBackup.enabled) {
 }
 
 const bot = createTelegramBot({ config, store, flowise, rateLimiter });
+const telegramMode =
+  config.telegramMode === "auto" ? (config.appBaseUrl ? "webhook" : "polling") : config.telegramMode;
 
 const app = express();
 app.use(express.json());
 app.use(express.static(path.resolve(process.cwd(), "public")));
+
+app.post(config.telegramWebhookPath, async (request, response) => {
+  if (telegramMode !== "webhook") {
+    response.status(404).json({ error: "Webhook mode disabled" });
+    return;
+  }
+
+  if (config.telegramWebhookSecret) {
+    const suppliedSecret = request.headers["x-telegram-bot-api-secret-token"];
+    if (suppliedSecret !== config.telegramWebhookSecret) {
+      response.status(401).json({ error: "Invalid webhook secret" });
+      return;
+    }
+  }
+
+  try {
+    await bot.handleUpdate(request.body);
+    response.sendStatus(200);
+  } catch (error) {
+    console.error("Telegram webhook handling failed:", error);
+    response.sendStatus(500);
+  }
+});
 
 app.get("/api/health", (request, response) => {
   response.json({
@@ -59,6 +84,19 @@ await bot.api.setMyCommands([
 
 function isTelegramConflictError(error) {
   return error?.error_code === 409 || error?.description?.includes("other getUpdates request");
+}
+
+async function prepareTelegramWebhook() {
+  if (!config.appBaseUrl) {
+    throw new Error("APP_BASE_URL or RENDER_EXTERNAL_URL is required for Telegram webhook mode");
+  }
+
+  const webhookUrl = `${config.appBaseUrl}${config.telegramWebhookPath}`;
+  await bot.api.setWebhook(webhookUrl, {
+    drop_pending_updates: config.telegramDropPendingUpdates,
+    secret_token: config.telegramWebhookSecret || undefined
+  });
+  console.log(`Telegram webhook configured at ${webhookUrl}`);
 }
 
 async function prepareTelegramPolling() {
@@ -92,6 +130,17 @@ function scheduleTelegramRetry() {
 
 async function startTelegramBot() {
   if (isShuttingDown) {
+    return;
+  }
+
+  if (telegramMode === "webhook") {
+    try {
+      await prepareTelegramWebhook();
+      console.log("Telegram bot is running in webhook mode.");
+    } catch (error) {
+      console.error("Failed to start Telegram webhook mode:", error);
+      scheduleTelegramRetry();
+    }
     return;
   }
 
