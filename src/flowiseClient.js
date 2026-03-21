@@ -127,12 +127,15 @@ export function createFlowiseClient(config) {
       const timeout = withTimeout(config.flowiseTimeoutMs);
       const decoratedQuestion = decorateQuestion(question, settings);
 
-      // Always set chatId to the session key so Flowise UI groups
-      // messages under a recognizable name (e.g. "tg_7638676611")
-      // instead of anonymous auto-generated UUIDs.
+      // Use the UUID-format flowiseChatId for Flowise UI compatibility.
+      // The Flowise UI can only open/view chat history when chatId is a UUID.
+      // Keep sessionKey (tg_XXXX) for overrideConfig.sessionId to isolate
+      // per-user conversation memory in Buffer Memory.
+      const uiChatId = session.flowiseChatId || session.sessionKey;
+
       const body = {
         question: decoratedQuestion,
-        chatId: session.sessionKey
+        chatId: uiChatId
       };
 
       if (config.flowiseSessionMode === "chatId") {
@@ -147,7 +150,7 @@ export function createFlowiseClient(config) {
         let { response, payload } = await callPrediction({
           body,
           sessionKey: session.sessionKey,
-          chatId: session.sessionKey,
+          chatId: uiChatId,
           signal: timeout.signal
         });
 
@@ -156,8 +159,8 @@ export function createFlowiseClient(config) {
         //   1. Direct HTTP 422 (no body)
         //   2. HTTP 500 wrapping an internal 422 in payload.message
         // If either pattern is detected AND we sent overrideConfig,
-        // retry without it — but KEEP chatId so Flowise UI still
-        // groups the message under the correct session name.
+        // retry without it — but KEEP chatId (UUID) so Flowise UI
+        // can still display the message thread.
         const is422Direct = response.status === 422;
         const is422Wrapped =
           response.status === 500 &&
@@ -173,12 +176,12 @@ export function createFlowiseClient(config) {
           );
           const fallbackBody = {
             question: decoratedQuestion,
-            chatId: session.sessionKey
+            chatId: uiChatId
           };
           ({ response, payload } = await callPrediction({
             body: fallbackBody,
             sessionKey: session.sessionKey,
-            chatId: session.sessionKey,
+            chatId: uiChatId,
             signal: timeout.signal
           }));
         }
@@ -189,7 +192,7 @@ export function createFlowiseClient(config) {
             status: response.status,
             sessionMode: config.flowiseSessionMode,
             sessionKey: session.sessionKey,
-            flowiseChatId: chatId,
+            chatId: uiChatId,
             payload
           });
           if (response.status === 422 && !payload) {
@@ -236,7 +239,7 @@ export function createFlowiseClient(config) {
       });
 
       if (config.flowiseSessionMode === "chatId") {
-        params.set("chatId", session.sessionKey);
+        params.set("chatId", session.flowiseChatId || session.sessionKey);
       } else {
         params.set("sessionId", session.sessionKey);
       }
