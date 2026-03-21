@@ -30,7 +30,10 @@
       <section class="panel">
         <div class="panel-header">
           <h2>Backup Viewer</h2>
-          <button id="refreshBackups">Refresh Backups</button>
+          <div class="inline-actions">
+            <button id="triggerBackup">Run Backup Now</button>
+            <button id="refreshBackups">Refresh Backups</button>
+          </div>
         </div>
         <div id="backupActions" class="backup-actions"></div>
         <div id="backupMeta" class="muted backup-meta">Choose live data or a backup snapshot.</div>

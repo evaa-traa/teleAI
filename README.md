@@ -103,6 +103,7 @@ Backup retention:
 
 - the app stores only the latest two Neon snapshots for each `NEON_BACKUP_KEY`
 - the dashboard can view live local data, the latest backup, or the previous backup
+- the admin dashboard can also trigger a manual backup immediately
 
 ## Setup
 

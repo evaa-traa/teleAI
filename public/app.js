@@ -3,6 +3,7 @@ const elements = {
   saveToken: document.getElementById("saveToken"),
   refreshAll: document.getElementById("refreshAll"),
   refreshBackups: document.getElementById("refreshBackups"),
+  triggerBackup: document.getElementById("triggerBackup"),
   summary: document.getElementById("summary"),
   backupActions: document.getElementById("backupActions"),
   backupMeta: document.getElementById("backupMeta"),
@@ -249,6 +250,23 @@ async function loadBackups() {
   renderBackupActions(payload.backups || []);
 }
 
+async function triggerBackup() {
+  const originalText = elements.triggerBackup.textContent;
+  elements.triggerBackup.disabled = true;
+  elements.triggerBackup.textContent = "Running...";
+
+  try {
+    const payload = await api("/api/admin/backups/trigger", {
+      method: "POST"
+    });
+    renderBackupActions(payload.backups || []);
+    elements.backupMeta.textContent = `Manual backup completed at ${formatDate(payload.result.syncedAt)}`;
+  } finally {
+    elements.triggerBackup.disabled = false;
+    elements.triggerBackup.textContent = originalText;
+  }
+}
+
 async function loadLiveSnapshot() {
   elements.backupMeta.textContent = "Loading live local data...";
   const payload = await api("/api/admin/backups/live");
@@ -325,6 +343,12 @@ elements.refreshAll.addEventListener("click", () => {
 
 elements.refreshBackups.addEventListener("click", () => {
   loadBackups().catch((error) => {
+    alert(error.message);
+  });
+});
+
+elements.triggerBackup.addEventListener("click", () => {
+  triggerBackup().catch((error) => {
     alert(error.message);
   });
 });

@@ -53,6 +53,25 @@ export function createAdminRouter({ config, store, flowise, neonBackup }) {
     });
   });
 
+  router.post("/backups/trigger", async (request, response) => {
+    if (!neonBackup.enabled) {
+      response.status(400).json({ error: "Neon backup is disabled" });
+      return;
+    }
+
+    try {
+      const result = await neonBackup.backupNow("manual");
+      const backups = await neonBackup.listBackups();
+      response.json({
+        ok: true,
+        result,
+        backups
+      });
+    } catch (error) {
+      response.status(502).json({ error: error.message });
+    }
+  });
+
   router.get("/backups/live", (request, response) => {
     response.json({
       source: "live",

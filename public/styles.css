@@ -95,6 +95,12 @@ input {
   margin-bottom: 1rem;
 }
 
+.inline-actions {
+  display: flex;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
 .panel-header h2 {
   margin: 0;
   font-size: 1.05rem;
