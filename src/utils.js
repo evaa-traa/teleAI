@@ -102,6 +102,46 @@ export function markdownToTelegramHtml(text) {
     return placeholder;
   });
 
+  // 2b. Extract and convert markdown tables to monospace pre blocks.
+  // Telegram has no HTML table support, so we render as aligned text.
+  const tableBlocks = [];
+  result = result.replace(
+    /(?:^\|.+\|[ \t]*\n)+/gm,
+    (tableMatch) => {
+      const rows = tableMatch.trim().split("\n").map((row) =>
+        row.replace(/^\||\|$/g, "").split("|").map((cell) => cell.trim())
+      );
+
+      // Remove separator rows (e.g. |---|---|)
+      const dataRows = rows.filter(
+        (row) => !row.every((cell) => /^[\-:]+$/.test(cell))
+      );
+
+      if (dataRows.length === 0) {
+        return tableMatch;
+      }
+
+      // Calculate column widths
+      const colCount = Math.max(...dataRows.map((r) => r.length));
+      const widths = Array.from({ length: colCount }, (_, col) =>
+        Math.max(...dataRows.map((r) => (r[col] || "").length), 1)
+      );
+
+      // Render aligned rows
+      const lines = dataRows.map((row) =>
+        row.map((cell, col) => (cell || "").padEnd(widths[col])).join("  │  ")
+      );
+
+      // Add a separator after the header row
+      const separator = widths.map((w) => "─".repeat(w)).join("──┼──");
+      const rendered = [lines[0], separator, ...lines.slice(1)].join("\n");
+
+      const placeholder = `%%TABLE_${tableBlocks.length}%%`;
+      tableBlocks.push(rendered);
+      return placeholder + "\n";
+    }
+  );
+
   // 3. Escape HTML special characters in remaining text
   result = result
     .replace(/&/g, "&amp;")
@@ -147,6 +187,12 @@ export function markdownToTelegramHtml(text) {
   codeBlocks.forEach((code, i) => {
     const escaped = code.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     result = result.replace(`%%CODEBLOCK_${i}%%`, `<pre>${escaped}</pre>`);
+  });
+
+  // 12. Restore table blocks (as monospace pre with HTML-escaped content)
+  tableBlocks.forEach((table, i) => {
+    const escaped = table.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    result = result.replace(`%%TABLE_${i}%%`, `<pre>${escaped}</pre>`);
   });
 
   return result;
