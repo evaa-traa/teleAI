@@ -12,6 +12,13 @@ function buildHeaders(apiKey) {
 }
 
 function withTimeout(timeoutMs) {
+  if (!timeoutMs || timeoutMs <= 0) {
+    return {
+      signal: undefined,
+      done() {}
+    };
+  }
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -116,6 +123,17 @@ export function createFlowiseClient(config) {
           raw: payload,
           text: extractReply(payload)
         };
+      } catch (error) {
+        if (error?.name === "AbortError") {
+          const timeoutSeconds = config.flowiseTimeoutMs > 0 ? Math.round(config.flowiseTimeoutMs / 1000) : null;
+          throw new Error(
+            timeoutSeconds
+              ? `Flowise request timed out after ${timeoutSeconds} seconds`
+              : "Flowise request timed out"
+          );
+        }
+
+        throw error;
       } finally {
         timeout.done();
       }
@@ -161,6 +179,17 @@ export function createFlowiseClient(config) {
               memoryType: message.memoryType || null
             }))
           : [];
+      } catch (error) {
+        if (error?.name === "AbortError") {
+          const timeoutSeconds = config.flowiseTimeoutMs > 0 ? Math.round(config.flowiseTimeoutMs / 1000) : null;
+          throw new Error(
+            timeoutSeconds
+              ? `Flowise history request timed out after ${timeoutSeconds} seconds`
+              : "Flowise history request timed out"
+          );
+        }
+
+        throw error;
       } finally {
         timeout.done();
       }

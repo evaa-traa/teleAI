@@ -66,7 +66,7 @@ export const config = {
   flowiseFlowId: process.env.FLOWISE_FLOW_ID || "",
   flowiseApiKey: process.env.FLOWISE_API_KEY || "",
   flowiseSessionMode: process.env.FLOWISE_SESSION_MODE === "chatId" ? "chatId" : "sessionId",
-  flowiseTimeoutMs: toNumber(process.env.FLOWISE_TIMEOUT_MS, 60_000),
+  flowiseTimeoutMs: Math.max(0, toNumber(process.env.FLOWISE_TIMEOUT_MS, 180_000)),
   messagesPer6Hours: Math.max(1, toNumber(process.env.MESSAGES_PER_6_HOURS, 100)),
   rateLimitWindowMs: 6 * 60 * 60 * 1000,
   neonDatabaseUrl: process.env.NEON_DATABASE_URL || "",

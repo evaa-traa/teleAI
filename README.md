@@ -122,14 +122,15 @@ Backup retention:
    - `APP_BASE_URL`
    - `TELEGRAM_POLL_RETRY_MS`
    - `FLOWISE_BASE_URL`
-   - `FLOWISE_FLOW_ID`
-   - `FLOWISE_API_KEY`
-   - `ADMIN_TOKEN`
-   - `NEON_DATABASE_URL`
+- `FLOWISE_FLOW_ID`
+- `FLOWISE_API_KEY`
+- `ADMIN_TOKEN`
+- `NEON_DATABASE_URL`
 
 If `ADMIN_TOKEN` contains `#`, spaces, or quotes, keep it wrapped in quotes in `.env`.
 
 For Render, set `APP_BASE_URL` to your public service URL so Telegram uses webhook mode instead of polling.
+Set `FLOWISE_TIMEOUT_MS` higher if your Flowise responses are slow. Use `0` to disable the timeout entirely.
 
 4. Start the app:
 
