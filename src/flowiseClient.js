@@ -134,6 +134,14 @@ export function createFlowiseClient(config) {
         });
 
         if (!response.ok) {
+          console.error("[flowise] prediction.failed", {
+            url: `${config.flowiseBaseUrl}/api/v1/prediction/${config.flowiseFlowId}`,
+            status: response.status,
+            sessionMode: config.flowiseSessionMode,
+            sessionKey: session.sessionKey,
+            flowiseChatId: chatId,
+            payload
+          });
           if (response.status === 422 && !payload) {
             throw new Error(
               "Flowise prediction failed with 422. The flow rejected the request payload. Verify this flow accepts question-based Prediction API calls and allows the configured session mode."
@@ -149,6 +157,13 @@ export function createFlowiseClient(config) {
           text: extractReply(payload)
         };
       } catch (error) {
+        console.error("[flowise] prediction.exception", {
+          url: `${config.flowiseBaseUrl}/api/v1/prediction/${config.flowiseFlowId}`,
+          sessionMode: config.flowiseSessionMode,
+          sessionKey: session.sessionKey,
+          flowiseChatId: chatId,
+          message: error?.message || String(error)
+        });
         if (error?.name === "AbortError") {
           const timeoutSeconds = config.flowiseTimeoutMs > 0 ? Math.round(config.flowiseTimeoutMs / 1000) : null;
           throw new Error(
@@ -201,6 +216,14 @@ export function createFlowiseClient(config) {
         });
 
         if (!response.ok) {
+          console.error("[flowise] history.failed", {
+            url: `${config.flowiseBaseUrl}/api/v1/chatmessage/${config.flowiseFlowId}?${params.toString()}`,
+            status: response.status,
+            sessionMode: config.flowiseSessionMode,
+            sessionKey: session.sessionKey,
+            flowiseChatId: session.flowiseChatId || session.sessionKey,
+            payload
+          });
           const message = payload?.message || payload?.error || response.statusText;
           throw new Error(`Flowise chat history failed: ${message}`);
         }
@@ -217,6 +240,13 @@ export function createFlowiseClient(config) {
             }))
           : [];
       } catch (error) {
+        console.error("[flowise] history.exception", {
+          url: `${config.flowiseBaseUrl}/api/v1/chatmessage/${config.flowiseFlowId}?${params.toString()}`,
+          sessionMode: config.flowiseSessionMode,
+          sessionKey: session.sessionKey,
+          flowiseChatId: session.flowiseChatId || session.sessionKey,
+          message: error?.message || String(error)
+        });
         if (error?.name === "AbortError") {
           const timeoutSeconds = config.flowiseTimeoutMs > 0 ? Math.round(config.flowiseTimeoutMs / 1000) : null;
           throw new Error(
