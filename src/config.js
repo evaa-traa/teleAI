@@ -41,6 +41,20 @@ function normalizePath(value, fallback) {
   return text.startsWith("/") ? text : `/${text}`;
 }
 
+function resolveAppBaseUrl() {
+  const directValue = trimTrailingSlash(process.env.APP_BASE_URL || process.env.RENDER_EXTERNAL_URL || "");
+  if (directValue) {
+    return directValue;
+  }
+
+  const renderHostname = String(process.env.RENDER_EXTERNAL_HOSTNAME || "").trim();
+  if (renderHostname) {
+    return `https://${renderHostname.replace(/^https?:\/\//, "").replace(/\/+$/, "")}`;
+  }
+
+  return "";
+}
+
 export const config = {
   appName: process.env.APP_NAME || "TeleAI Bridge",
   port: toNumber(process.env.PORT, 3001),
@@ -61,7 +75,7 @@ export const config = {
   telegramMode: ["auto", "polling", "webhook"].includes(process.env.TELEGRAM_MODE)
     ? process.env.TELEGRAM_MODE
     : "auto",
-  appBaseUrl: trimTrailingSlash(process.env.APP_BASE_URL || process.env.RENDER_EXTERNAL_URL || ""),
+  appBaseUrl: resolveAppBaseUrl(),
   telegramWebhookPath: normalizePath(process.env.TELEGRAM_WEBHOOK_PATH, "/webhooks/telegram"),
   telegramWebhookSecret: normalizeSecret(process.env.TELEGRAM_WEBHOOK_SECRET),
   telegramPollRetryMs: Math.max(5_000, toNumber(process.env.TELEGRAM_POLL_RETRY_MS, 15_000)),

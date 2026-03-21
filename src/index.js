@@ -48,13 +48,10 @@ app.post(config.telegramWebhookPath, async (request, response) => {
     }
   }
 
-  try {
-    await bot.handleUpdate(request.body);
-    response.sendStatus(200);
-  } catch (error) {
+  response.sendStatus(200);
+  void bot.handleUpdate(request.body).catch((error) => {
     console.error("Telegram webhook handling failed:", error);
-    response.sendStatus(500);
-  }
+  });
 });
 
 app.get("/api/health", (request, response) => {
@@ -69,6 +66,7 @@ app.use("/api/admin", createAdminRouter({ config, store, flowise, neonBackup }))
 
 const server = app.listen(config.port, () => {
   console.log(`${config.appName} dashboard is running on http://localhost:${config.port}`);
+  console.log(`Telegram startup mode: ${telegramMode}`);
 });
 
 const stopNeonBackupScheduler = neonBackup.startScheduler();
@@ -97,6 +95,7 @@ async function prepareTelegramWebhook() {
     secret_token: config.telegramWebhookSecret || undefined
   });
   console.log(`Telegram webhook configured at ${webhookUrl}`);
+  console.log("Telegram webhook info:", await bot.api.getWebhookInfo());
 }
 
 async function prepareTelegramPolling() {
