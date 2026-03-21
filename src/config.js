@@ -20,11 +20,23 @@ function trimTrailingSlash(value) {
   return value ? value.replace(/\/+$/, "") : "";
 }
 
+function normalizeSecret(value) {
+  const text = String(value || "").trim();
+  if (
+    (text.startsWith('"') && text.endsWith('"')) ||
+    (text.startsWith("'") && text.endsWith("'"))
+  ) {
+    return text.slice(1, -1);
+  }
+
+  return text;
+}
+
 export const config = {
   appName: process.env.APP_NAME || "TeleAI Bridge",
   port: toNumber(process.env.PORT, 3001),
   dataFile: path.resolve(process.cwd(), process.env.DATA_FILE || "./data/store.json"),
-  adminToken: process.env.ADMIN_TOKEN || "",
+  adminToken: normalizeSecret(process.env.ADMIN_TOKEN),
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || "",
   allowGroupChats: toBoolean(process.env.ALLOW_GROUP_CHATS, false),
   flowiseBaseUrl: trimTrailingSlash(process.env.FLOWISE_BASE_URL || ""),
@@ -36,7 +48,10 @@ export const config = {
   rateLimitWindowMs: 6 * 60 * 60 * 1000,
   neonDatabaseUrl: process.env.NEON_DATABASE_URL || "",
   neonBackupKey: process.env.NEON_BACKUP_KEY || "teleai-primary",
-  backupIntervalMinutes: Math.max(1, toNumber(process.env.BACKUP_INTERVAL_MINUTES, 30))
+  backupIntervalMinutes: Math.max(1, toNumber(process.env.BACKUP_INTERVAL_MINUTES, 30)),
+  telegramPollRetryMs: Math.max(5_000, toNumber(process.env.TELEGRAM_POLL_RETRY_MS, 15_000)),
+  telegramDropPendingUpdates: toBoolean(process.env.TELEGRAM_DROP_PENDING_UPDATES, false),
+  telegramDeleteWebhookOnStart: toBoolean(process.env.TELEGRAM_DELETE_WEBHOOK_ON_START, true)
 };
 
 export function validateConfig() {

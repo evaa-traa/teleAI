@@ -26,6 +26,18 @@ if (state.token) {
   elements.adminToken.value = state.token;
 }
 
+function normalizeToken(value) {
+  const text = String(value || "").trim();
+  if (
+    (text.startsWith('"') && text.endsWith('"')) ||
+    (text.startsWith("'") && text.endsWith("'"))
+  ) {
+    return text.slice(1, -1);
+  }
+
+  return text;
+}
+
 function formatDate(value) {
   if (!value) {
     return "n/a";
@@ -286,7 +298,8 @@ async function createSession() {
 }
 
 async function unlockAndLoad() {
-  state.token = elements.adminToken.value.trim();
+  state.token = normalizeToken(elements.adminToken.value);
+  elements.adminToken.value = state.token;
   localStorage.setItem("adminToken", state.token);
   await Promise.all([loadSummaryAndUsers(), loadBackups()]);
 }

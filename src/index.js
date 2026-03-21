@@ -47,6 +47,8 @@ const server = app.listen(config.port, () => {
 });
 
 const stopNeonBackupScheduler = neonBackup.startScheduler();
+let telegramRetryTimer = null;
+let isShuttingDown = false;
 
 await bot.api.setMyCommands([
   { command: "start", description: "Show welcome menu" },
@@ -55,13 +57,73 @@ await bot.api.setMyCommands([
   { command: "newchat", description: "Start a new chat" }
 ]);
 
-bot.start().catch((error) => {
-  console.error("Failed to start Telegram bot:", error);
-  process.exit(1);
-});
+function isTelegramConflictError(error) {
+  return error?.error_code === 409 || error?.description?.includes("other getUpdates request");
+}
+
+async function prepareTelegramPolling() {
+  if (!config.telegramDeleteWebhookOnStart) {
+    return;
+  }
+
+  try {
+    await bot.api.deleteWebhook({
+      drop_pending_updates: config.telegramDropPendingUpdates
+    });
+  } catch (error) {
+    console.error("Failed to clear Telegram webhook before polling:", error.message);
+  }
+}
+
+function scheduleTelegramRetry() {
+  if (isShuttingDown || telegramRetryTimer) {
+    return;
+  }
+
+  telegramRetryTimer = setTimeout(() => {
+    telegramRetryTimer = null;
+    void startTelegramBot();
+  }, config.telegramPollRetryMs);
+
+  if (typeof telegramRetryTimer.unref === "function") {
+    telegramRetryTimer.unref();
+  }
+}
+
+async function startTelegramBot() {
+  if (isShuttingDown) {
+    return;
+  }
+
+  await prepareTelegramPolling();
+
+  try {
+    await bot.start({
+      drop_pending_updates: config.telegramDropPendingUpdates
+    });
+  } catch (error) {
+    if (isTelegramConflictError(error)) {
+      console.error(
+        `Telegram polling conflict detected. Retrying in ${config.telegramPollRetryMs}ms.`
+      );
+      scheduleTelegramRetry();
+      return;
+    }
+
+    console.error("Failed to start Telegram bot:", error);
+    scheduleTelegramRetry();
+  }
+}
+
+void startTelegramBot();
 
 async function shutdown(signal) {
   console.log(`Received ${signal}, shutting down...`);
+  isShuttingDown = true;
+  if (telegramRetryTimer) {
+    clearTimeout(telegramRetryTimer);
+    telegramRetryTimer = null;
+  }
   stopNeonBackupScheduler();
   if (neonBackup.enabled) {
     try {

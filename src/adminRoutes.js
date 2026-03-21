@@ -1,13 +1,27 @@
 import express from "express";
 
+function normalizeToken(value) {
+  const text = String(value || "").trim();
+  if (
+    (text.startsWith('"') && text.endsWith('"')) ||
+    (text.startsWith("'") && text.endsWith("'"))
+  ) {
+    return text.slice(1, -1);
+  }
+
+  return text;
+}
+
 function authenticateAdmin(adminToken) {
+  const expectedToken = normalizeToken(adminToken);
+
   return (request, response, next) => {
     const bearer = request.headers.authorization?.startsWith("Bearer ")
       ? request.headers.authorization.slice(7)
       : null;
-    const suppliedToken = request.headers["x-admin-token"] || bearer;
+    const suppliedToken = normalizeToken(request.headers["x-admin-token"] || bearer);
 
-    if (!suppliedToken || suppliedToken !== adminToken) {
+    if (!suppliedToken || suppliedToken !== expectedToken) {
       response.status(401).json({ error: "Unauthorized" });
       return;
     }

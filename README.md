@@ -117,11 +117,14 @@ Backup retention:
 3. Fill in:
 
    - `TELEGRAM_BOT_TOKEN`
+   - `TELEGRAM_POLL_RETRY_MS`
    - `FLOWISE_BASE_URL`
    - `FLOWISE_FLOW_ID`
    - `FLOWISE_API_KEY`
    - `ADMIN_TOKEN`
    - `NEON_DATABASE_URL`
+
+If `ADMIN_TOKEN` contains `#`, spaces, or quotes, keep it wrapped in quotes in `.env`.
 
 4. Start the app:
 
@@ -147,5 +150,6 @@ The dashboard uses `ADMIN_TOKEN`. Enter it in the page and it will be sent as `x
 ## Notes
 
 - This starter uses long polling for Telegram because it is simple to run locally.
+- On Render or similar hosts, the app clears webhook state on startup and retries polling if Telegram returns a `409` conflict.
 - If you later want, it can be upgraded to webhooks, SQLite/PostgreSQL, and stronger admin auth.
 - If `NEON_DATABASE_URL` is not set, Neon backup is disabled and the app uses only the local JSON file.
