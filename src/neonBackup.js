@@ -197,6 +197,14 @@ export function createNeonBackupService({ config, store }) {
   function startScheduler() {
     const intervalMs = config.backupIntervalMinutes * 60 * 1000;
     const timer = setInterval(() => {
+      // Skip backup if the store has not changed since the last backup.
+      // This saves a Neon database call on every interval tick when idle.
+      const lastBackupAt = store.state.meta?.lastNeonBackupAt;
+      const lastUpdatedAt = store.getStateUpdatedAt();
+      if (lastBackupAt && lastUpdatedAt && toMillis(lastUpdatedAt) <= toMillis(lastBackupAt)) {
+        return;
+      }
+
       backupNow("interval").catch((error) => {
         console.error("Neon backup failed:", error.message);
       });

@@ -1,5 +1,5 @@
 import { Bot, InlineKeyboard } from "grammy";
-import { chunkText, formatDateTime } from "./utils.js";
+import { chunkText, formatDateTime, markdownToTelegramHtml } from "./utils.js";
 
 function buildMainMenuKeyboard() {
   return new InlineKeyboard()
@@ -106,18 +106,37 @@ async function replyInChunks(ctx, text, extra = {}) {
   }
 }
 
+async function sendFormattedChunk(ctx, text, editTarget) {
+  const html = markdownToTelegramHtml(text);
+
+  try {
+    if (editTarget) {
+      await ctx.api.editMessageText(ctx.chat.id, editTarget, html, { parse_mode: "HTML" });
+    } else {
+      await ctx.reply(html, { parse_mode: "HTML" });
+    }
+  } catch {
+    // Fallback: if HTML parsing fails (malformed tags), send as plain text
+    if (editTarget) {
+      try {
+        await ctx.api.editMessageText(ctx.chat.id, editTarget, text);
+      } catch {
+        await ctx.reply(text);
+      }
+    } else {
+      await ctx.reply(text);
+    }
+  }
+}
+
 async function replacePlaceholderReply(ctx, placeholderMessage, text) {
   const chunks = chunkText(text);
   const [firstChunk = "I could not generate a response right now.", ...remainingChunks] = chunks;
 
-  try {
-    await ctx.api.editMessageText(ctx.chat.id, placeholderMessage.message_id, firstChunk);
-  } catch {
-    await ctx.reply(firstChunk);
-  }
+  await sendFormattedChunk(ctx, firstChunk, placeholderMessage.message_id);
 
   for (const chunk of remainingChunks) {
-    await ctx.reply(chunk);
+    await sendFormattedChunk(ctx, chunk, null);
   }
 }
 
