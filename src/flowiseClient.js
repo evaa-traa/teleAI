@@ -81,17 +81,23 @@ export function createFlowiseClient(config) {
   const headers = buildHeaders(config.flowiseApiKey);
 
   return {
-    async sendMessage({ sessionKey, question, settings }) {
+    async sendMessage({ session, question, settings }) {
       const timeout = withTimeout(config.flowiseTimeoutMs);
+      const chatId = session.flowiseChatId || session.sessionKey;
       const body = {
-        question: decorateQuestion(question, settings)
+        question: decorateQuestion(question, settings),
+        streaming: false,
+        history: [],
+        uploads: [],
+        chatId,
+        chatType: "EXTERNAL"
       };
 
       if (config.flowiseSessionMode === "chatId") {
-        body.chatId = sessionKey;
+        body.chatId = chatId;
       } else {
         body.overrideConfig = {
-          sessionId: sessionKey
+          sessionId: session.sessionKey
         };
       }
 
@@ -119,16 +125,17 @@ export function createFlowiseClient(config) {
       }
     },
 
-    async getMessages(sessionKey) {
+    async getMessages(session) {
       const timeout = withTimeout(config.flowiseTimeoutMs);
       const params = new URLSearchParams({
-        order: "ASC"
+        order: "ASC",
+        chatType: "EXTERNAL"
       });
 
       if (config.flowiseSessionMode === "chatId") {
-        params.set("chatId", sessionKey);
+        params.set("chatId", session.flowiseChatId || session.sessionKey);
       } else {
-        params.set("sessionId", sessionKey);
+        params.set("sessionId", session.sessionKey);
       }
 
       try {

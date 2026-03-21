@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { buildPublicName, buildSessionKey, buildSessionLabel } from "./utils.js";
+import { buildFlowiseChatId, buildPublicName, buildSessionKey, buildSessionLabel } from "./utils.js";
 
 const DEFAULT_SETTINGS = {
   preferredLanguage: "auto",
@@ -160,6 +160,7 @@ export class JsonStore {
       const session = {
         sessionIndex: 0,
         sessionKey: buildSessionKey(user, 0),
+        flowiseChatId: buildFlowiseChatId(),
         label: buildSessionLabel(user, 0),
         createdAt: new Date().toISOString(),
         lastUsedAt: new Date().toISOString()
@@ -176,7 +177,13 @@ export class JsonStore {
       await this.persist();
     }
 
-    return this.getActiveSession(userId) || this.state.sessionsByUser[userId][0];
+    const activeSession = this.getActiveSession(userId) || this.state.sessionsByUser[userId][0];
+    if (!activeSession.flowiseChatId) {
+      activeSession.flowiseChatId = buildFlowiseChatId();
+      await this.persist();
+    }
+
+    return activeSession;
   }
 
   async createNewSession(userId) {
@@ -190,6 +197,7 @@ export class JsonStore {
     const session = {
       sessionIndex: nextIndex,
       sessionKey: buildSessionKey(user, nextIndex),
+      flowiseChatId: buildFlowiseChatId(),
       label: buildSessionLabel(user, nextIndex),
       createdAt: new Date().toISOString(),
       lastUsedAt: new Date().toISOString()
@@ -213,6 +221,9 @@ export class JsonStore {
     }
 
     session.lastUsedAt = new Date().toISOString();
+    if (!session.flowiseChatId) {
+      session.flowiseChatId = buildFlowiseChatId();
+    }
     this.state.users[String(userId)].activeSessionKey = sessionKey;
     await this.persist();
     return session;

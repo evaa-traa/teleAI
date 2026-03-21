@@ -118,8 +118,14 @@ export function createAdminRouter({ config, store, flowise, neonBackup }) {
       return;
     }
 
+    const session = detail.sessions.find((item) => item.sessionKey === sessionKey);
+    if (!session) {
+      response.status(400).json({ error: "Session not found" });
+      return;
+    }
+
     try {
-      const messages = await flowise.getMessages(sessionKey);
+      const messages = await flowise.getMessages(session);
       response.json({ sessionKey, messages });
     } catch (error) {
       response.status(502).json({ error: error.message });

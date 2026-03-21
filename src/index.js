@@ -49,12 +49,10 @@ const server = app.listen(config.port, () => {
 const stopNeonBackupScheduler = neonBackup.startScheduler();
 
 await bot.api.setMyCommands([
-  { command: "start", description: "Start the bot" },
+  { command: "start", description: "Show welcome menu" },
   { command: "help", description: "Show help" },
   { command: "settings", description: "Open settings" },
-  { command: "newchat", description: "Start a fresh Flowise session" },
-  { command: "me", description: "Show stored Telegram info" },
-  { command: "privacy", description: "Show stored data policy" }
+  { command: "newchat", description: "Start a new chat" }
 ]);
 
 bot.start().catch((error) => {

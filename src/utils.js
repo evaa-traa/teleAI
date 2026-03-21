@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 export function buildPublicName(from) {
   const joined = [from?.first_name, from?.last_name].filter(Boolean).join(" ").trim();
   return joined || from?.username || `user-${from?.id ?? "unknown"}`;
@@ -27,6 +29,10 @@ export function buildSessionLabel(user, index) {
   }
 
   return `Chat ${index} for ${user.publicName}`;
+}
+
+export function buildFlowiseChatId() {
+  return randomUUID();
 }
 
 export function chunkText(text, limit = 3900) {

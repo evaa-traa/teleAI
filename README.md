@@ -65,8 +65,6 @@ Relevant docs:
 - `/help` command list
 - `/settings` inline settings menu
 - `/newchat` create a fresh Flowise session key
-- `/me` show known Telegram profile data
-- `/privacy` explain stored data
 
 ## User settings
 

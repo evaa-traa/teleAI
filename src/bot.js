@@ -6,21 +6,17 @@ function buildMainMenuKeyboard() {
     .text("New Chat", "menu:newchat")
     .text("Settings", "menu:settings")
     .row()
-    .text("My Info", "menu:me")
-    .text("Privacy", "menu:privacy")
-    .row()
     .text("Help", "menu:help");
 }
 
 function buildWelcomeMessage(appName, session) {
+  void session;
   return [
     `Welcome to ${appName}`,
     "",
-    "You can chat naturally and I will forward your messages to the connected Flowise AI.",
+    "Send a message anytime to start chatting.",
     "",
-    `Active session: <code>${session.sessionKey}</code>`,
-    "",
-    "Quick actions are below, or just send a message to start chatting."
+    "Use the buttons below whenever you need them."
   ].join("\n");
 }
 
@@ -32,30 +28,8 @@ function buildHelpMessage() {
     "/help - show this help message",
     "/settings - change language and response style",
     "/newchat - start a fresh Flowise session",
-    "/me - view your stored Telegram profile info",
-    "/privacy - see what is stored locally",
     "",
     "Tip: you can also use the inline buttons instead of typing commands."
-  ].join("\n");
-}
-
-function buildPrivacyMessage() {
-  return [
-    "Privacy summary",
-    "",
-    "Stored locally:",
-    "- Telegram user ID",
-    "- username and public name",
-    "- first/last name",
-    "- language code",
-    "- chat ID and chat type",
-    "- first seen / last seen",
-    "- settings, session keys, counts, rate-limit counters",
-    "",
-    "Not stored locally:",
-    "- chat transcripts",
-    "",
-    "Chat history is fetched live from Flowise for the dashboard."
   ].join("\n");
 }
 
@@ -90,29 +64,10 @@ function buildSettingsMessage(settings) {
   ].join("\n");
 }
 
-function buildProfileMessage(user, activeSession) {
-  return [
-    "Known Telegram info:",
-    `- user id: ${user.telegramUserId}`,
-    `- username: ${user.username || "n/a"}`,
-    `- public name: ${user.publicName}`,
-    `- first name: ${user.firstName || "n/a"}`,
-    `- last name: ${user.lastName || "n/a"}`,
-    `- language code: ${user.languageCode || "n/a"}`,
-    `- chat id: ${user.chatId || "n/a"}`,
-    `- chat type: ${user.chatType || "n/a"}`,
-    `- first seen: ${formatDateTime(user.firstSeenAt)}`,
-    `- last seen: ${formatDateTime(user.lastSeenAt)}`,
-    `- active session: ${activeSession?.sessionKey || "n/a"}`,
-    `- total AI replies: ${user.totalAiMessages || 0}`
-  ].join("\n");
-}
-
 function buildNewChatMessage(session) {
+  void session;
   return [
     "Started a fresh Flowise session.",
-    "",
-    `New session: <code>${session.sessionKey}</code>`,
     "",
     "Your next messages will go to this new chat."
   ].join("\n");
@@ -149,6 +104,39 @@ async function respondWithMenu(ctx, text, extra = {}) {
     reply_markup: buildMainMenuKeyboard(),
     ...extra
   });
+}
+
+function startTypingLoop(ctx) {
+  const chatId = ctx.chat?.id;
+  if (!chatId) {
+    return () => {};
+  }
+
+  let stopped = false;
+  const send = async () => {
+    try {
+      await ctx.api.sendChatAction(chatId, "typing");
+    } catch {
+      // ignore
+    }
+  };
+
+  void send();
+  const interval = setInterval(() => {
+    if (stopped) {
+      return;
+    }
+    void send();
+  }, 4000);
+
+  if (typeof interval.unref === "function") {
+    interval.unref();
+  }
+
+  return () => {
+    stopped = true;
+    clearInterval(interval);
+  };
 }
 
 async function ensureUserContext(ctx, store) {
@@ -188,16 +176,6 @@ export function createTelegramBot({ config, store, flowise, rateLimiter }) {
     await respondWithMenu(ctx, buildHelpMessage());
   });
 
-  bot.command("privacy", async (ctx) => {
-    if (!isPrivateOrAllowed(ctx, config)) {
-      return;
-    }
-
-    const { user } = await ensureUserContext(ctx, store);
-    await store.incrementCommand(user.telegramUserId, "/privacy");
-    await respondWithMenu(ctx, buildPrivacyMessage());
-  });
-
   bot.command("settings", async (ctx) => {
     if (!isPrivateOrAllowed(ctx, config)) {
       return;
@@ -209,16 +187,6 @@ export function createTelegramBot({ config, store, flowise, rateLimiter }) {
       parse_mode: "HTML",
       reply_markup: buildSettingsKeyboard(user.settings)
     });
-  });
-
-  bot.command("me", async (ctx) => {
-    if (!isPrivateOrAllowed(ctx, config)) {
-      return;
-    }
-
-    const { user, session } = await ensureUserContext(ctx, store);
-    await store.incrementCommand(user.telegramUserId, "/me");
-    await respondWithMenu(ctx, buildProfileMessage(user, session));
   });
 
   bot.command("newchat", async (ctx) => {
@@ -236,14 +204,14 @@ export function createTelegramBot({ config, store, flowise, rateLimiter }) {
     await ctx.answerCallbackQuery();
   });
 
-  bot.callbackQuery(/^menu:(help|settings|newchat|me|privacy)$/, async (ctx) => {
+  bot.callbackQuery(/^menu:(help|settings|newchat)$/, async (ctx) => {
     if (!isPrivateOrAllowed(ctx, config)) {
       await ctx.answerCallbackQuery();
       return;
     }
 
     const action = ctx.match[1];
-    const { user, session } = await ensureUserContext(ctx, store);
+    const { user } = await ensureUserContext(ctx, store);
 
     if (action === "help") {
       await ctx.reply(buildHelpMessage(), {
@@ -272,21 +240,10 @@ export function createTelegramBot({ config, store, flowise, rateLimiter }) {
       await ctx.answerCallbackQuery("Started new chat");
       return;
     }
+  });
 
-    if (action === "me") {
-      await ctx.reply(buildProfileMessage(user, session), {
-        parse_mode: "HTML",
-        reply_markup: buildMainMenuKeyboard()
-      });
-      await ctx.answerCallbackQuery("Opened your info");
-      return;
-    }
-
-    await ctx.reply(buildPrivacyMessage(), {
-      parse_mode: "HTML",
-      reply_markup: buildMainMenuKeyboard()
-    });
-    await ctx.answerCallbackQuery("Opened privacy");
+  bot.callbackQuery(/^menu:/, async (ctx) => {
+    await ctx.answerCallbackQuery("Menu updated. Send /start.");
   });
 
   bot.callbackQuery(/^setting:(lang|style|alerts):(.+)$/, async (ctx) => {
@@ -334,11 +291,11 @@ export function createTelegramBot({ config, store, flowise, rateLimiter }) {
     }
 
     await store.touchSession(user.telegramUserId, session.sessionKey);
-    await ctx.api.sendChatAction(ctx.chat.id, "typing");
+    const stopTyping = startTypingLoop(ctx);
 
     try {
       const response = await flowise.sendMessage({
-        sessionKey: session.sessionKey,
+        session,
         question: incomingText,
         settings: user.settings
       });
@@ -348,6 +305,8 @@ export function createTelegramBot({ config, store, flowise, rateLimiter }) {
     } catch (error) {
       await store.markFlowiseError(user.telegramUserId);
       await respondWithMenu(ctx, buildFlowiseErrorMessage(error));
+    } finally {
+      stopTyping();
     }
   });
 
