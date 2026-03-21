@@ -95,13 +95,40 @@ function extractReply(payload) {
 export function createFlowiseClient(config) {
   const headers = buildHeaders(config.flowiseApiKey);
 
+  async function callPrediction({ body, sessionKey, chatId, signal }) {
+    const url = `${config.flowiseBaseUrl}/api/v1/prediction/${config.flowiseFlowId}`;
+    debugLog(config, "prediction.request", {
+      url,
+      sessionMode: config.flowiseSessionMode,
+      sessionKey,
+      flowiseChatId: chatId,
+      body
+    });
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      signal
+    });
+
+    const payload = await response.json().catch(() => null);
+    debugLog(config, "prediction.response", {
+      status: response.status,
+      ok: response.ok,
+      payload
+    });
+
+    return { response, payload };
+  }
+
   return {
     async sendMessage({ session, question, settings }) {
       const timeout = withTimeout(config.flowiseTimeoutMs);
       const chatId = session.flowiseChatId || session.sessionKey;
-      const body = {
-        question: decorateQuestion(question, settings)
-      };
+      const decoratedQuestion = decorateQuestion(question, settings);
+
+      const body = { question: decoratedQuestion };
 
       if (config.flowiseSessionMode === "chatId") {
         body.chatId = chatId;
@@ -112,26 +139,31 @@ export function createFlowiseClient(config) {
       }
 
       try {
-        debugLog(config, "prediction.request", {
-          url: `${config.flowiseBaseUrl}/api/v1/prediction/${config.flowiseFlowId}`,
-          sessionMode: config.flowiseSessionMode,
+        let { response, payload } = await callPrediction({
+          body,
           sessionKey: session.sessionKey,
-          flowiseChatId: chatId,
-          body
-        });
-        const response = await fetch(`${config.flowiseBaseUrl}/api/v1/prediction/${config.flowiseFlowId}`, {
-          method: "POST",
-          headers,
-          body: JSON.stringify(body),
+          chatId,
           signal: timeout.signal
         });
 
-        const payload = await response.json().catch(() => null);
-        debugLog(config, "prediction.response", {
-          status: response.status,
-          ok: response.ok,
-          payload
-        });
+        // --- 422 fallback: retry WITHOUT overrideConfig ---
+        // If Flowise rejects the payload (likely because overrideConfig
+        // is not enabled in the chatflow settings), retry with a minimal
+        // body so the user still gets an AI response.
+        if (response.status === 422 && body.overrideConfig) {
+          console.warn(
+            "[flowise] 422 with overrideConfig — retrying WITHOUT overrideConfig.",
+            "Enable sessionId in your Flowise chatflow's Override Config settings",
+            "to restore per-user session isolation."
+          );
+          const fallbackBody = { question: decoratedQuestion };
+          ({ response, payload } = await callPrediction({
+            body: fallbackBody,
+            sessionKey: session.sessionKey,
+            chatId,
+            signal: timeout.signal
+          }));
+        }
 
         if (!response.ok) {
           console.error("[flowise] prediction.failed", {
@@ -144,7 +176,8 @@ export function createFlowiseClient(config) {
           });
           if (response.status === 422 && !payload) {
             throw new Error(
-              "Flowise prediction failed with 422. The flow rejected the request payload. Verify this flow accepts question-based Prediction API calls and allows the configured session mode."
+              "Flowise prediction failed with 422. The flow rejected the request payload. " +
+              "Verify the FLOWISE_FLOW_ID is correct and the chatflow accepts Prediction API calls."
             );
           }
 
