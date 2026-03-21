@@ -147,14 +147,23 @@ export function createFlowiseClient(config) {
         });
 
         // --- 422 fallback: retry WITHOUT overrideConfig ---
-        // If Flowise rejects the payload (likely because overrideConfig
-        // is not enabled in the chatflow settings), retry with a minimal
-        // body so the user still gets an AI response.
-        if (response.status === 422 && body.overrideConfig) {
+        // Flowise may reject overrideConfig in two ways:
+        //   1. Direct HTTP 422 (no body)
+        //   2. HTTP 500 wrapping an internal 422 in payload.message
+        // If either pattern is detected AND we sent overrideConfig,
+        // retry with a minimal body so the user still gets an AI response.
+        const is422Direct = response.status === 422;
+        const is422Wrapped =
+          response.status === 500 &&
+          typeof payload?.message === "string" &&
+          payload.message.includes("422");
+        
+        if ((is422Direct || is422Wrapped) && body.overrideConfig) {
           console.warn(
-            "[flowise] 422 with overrideConfig — retrying WITHOUT overrideConfig.",
-            "Enable sessionId in your Flowise chatflow's Override Config settings",
-            "to restore per-user session isolation."
+            "[flowise] Flowise rejected overrideConfig (status %d, inner 422). Retrying WITHOUT overrideConfig.",
+            response.status,
+            "To restore per-user session isolation, enable sessionId in",
+            "your Flowise chatflow's Override Config settings."
           );
           const fallbackBody = { question: decoratedQuestion };
           ({ response, payload } = await callPrediction({
